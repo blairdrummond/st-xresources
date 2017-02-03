@@ -34,7 +34,7 @@ clean:
 dist: clean
 	@echo creating dist tarball
 	@mkdir -p st-${VERSION}
-	@cp -R LICENSE Makefile README config.mk config.def.h st.info st.1 ${SRC} st-${VERSION}
+	@cp -R LICENSE Makefile README config.mk config.def.h st.info st.1 arg.h ${SRC} st-${VERSION}
 	@tar -cf st-${VERSION}.tar st-${VERSION}
 	@gzip st-${VERSION}.tar
 	@rm -rf st-${VERSION}
@@ -49,7 +49,7 @@ install: all
 	@sed "s/VERSION/${VERSION}/g" < st.1 > ${DESTDIR}${MANPREFIX}/man1/st.1
 	@chmod 644 ${DESTDIR}${MANPREFIX}/man1/st.1
 	@echo Please see the README file regarding the terminfo entry of st.
-	@tic -s st.info
+	@tic -sx st.info
 
 uninstall:
 	@echo removing executable file from ${DESTDIR}${PREFIX}/bin

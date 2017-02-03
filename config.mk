@@ -1,6 +1,5 @@
 # st version
-VERSION = 0.6
-#REMOVE_IF_ON_OSX = -lrt
+VERSION = 0.7
 
 # Customize below to fit your system
 
@@ -8,17 +7,16 @@ VERSION = 0.6
 PREFIX = /usr/local
 MANPREFIX = ${PREFIX}/share/man
 
-X11INC = /opt/X11/include
-X11LIB = /opt/X11/lib
+X11INC = /usr/X11R6/include
+X11LIB = /usr/X11R6/lib
 
 # includes and libs
 INCS = -I. -I/usr/include -I${X11INC} \
        `pkg-config --cflags fontconfig` \
        `pkg-config --cflags freetype2`
-LIBS = -L/usr/lib -lc -L${X11LIB} -lm ${REMOVE_IF_ON_OSX} -lX11 -lutil -lXext -lXft \
+LIBS = -L/usr/lib -lc -L${X11LIB} -lm -lrt -lX11 -lutil -lXft \
        `pkg-config --libs fontconfig`  \
        `pkg-config --libs freetype2`
-
 
 # flags
 CPPFLAGS = -DVERSION=\"${VERSION}\" -D_XOPEN_SOURCE=600
