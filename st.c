@@ -89,20 +89,29 @@ char *argv0;
 #define TRUEGREEN(x)		(((x) & 0xff00))
 #define TRUEBLUE(x)		(((x) & 0xff) << 8)
 
-#define XRESOURCE_LOAD_STRING(NAME, DST)                      \
-	XrmGetResource(db, NAME, NAME, &type, &ret);      \
-	if (ret.addr != NULL && !strncmp("String", type, 64)) \
-		DST = ret.addr;
 
-#define XRESOURCE_LOAD_INTEGER(NAME, DST)                     \
-	XrmGetResource(db, NAME, NAME, &type, &ret);      \
-	if (ret.addr != NULL && !strncmp("String", type, 64)) \
-		DST = strtoul(ret.addr, NULL, 10);
 
-#define XRESOURCE_LOAD_FLOAT(NAME, DST)                       \
-	XrmGetResource(db, NAME, NAME, &type, &ret);      \
-	if (ret.addr != NULL && !strncmp("String", type, 64)) \
-		DST = strtof(ret.addr, NULL);
+#define XRESOURCE_LOAD_META(NAME)                                  \
+            if(!XrmGetResource(xrdb, "st." NAME, "st." NAME, &type, &ret)) \
+                XrmGetResource(xrdb, "*." NAME, "*." NAME, &type, &ret);   \
+        if (ret.addr != NULL && !strncmp("String", type, 64))
+
+#define XRESOURCE_LOAD_STRING(NAME, DST) \
+            XRESOURCE_LOAD_META(NAME)            \
+                DST = ret.addr;
+
+#define XRESOURCE_LOAD_CHAR(NAME, DST) \
+            XRESOURCE_LOAD_META(NAME)            \
+                DST = ret.addr[0];
+
+#define XRESOURCE_LOAD_INTEGER(NAME, DST)  \
+            XRESOURCE_LOAD_META(NAME)              \
+                DST = strtoul(ret.addr, NULL, 10);
+
+#define XRESOURCE_LOAD_FLOAT(NAME, DST) \
+            XRESOURCE_LOAD_META(NAME)           \
+                DST = strtof(ret.addr, NULL);
+
 
 
 /* constants */
@@ -540,6 +549,8 @@ static void (*handler[LASTEvent])(XEvent *) = {
 	[PropertyNotify] = propnotify,
 	[SelectionRequest] = selrequest,
 };
+
+void xrdb_load(void);
 
 /* Globals */
 static DC dc;
@@ -4489,54 +4500,83 @@ usage(void)
 }
 
 void
-config_init(void)
+xrdb_load(void)
 {
-	if(!(xw.dpy = XOpenDisplay(NULL)))
-		die("Can't open display\n");
 
-	/* XXX */
-	char *resm;
-	char *type;
-	XrmDatabase db;
-	XrmValue ret;
+        /* XXX */
+        char *xrm;
+        char *type;
+        XrmDatabase xrdb;
+        XrmValue ret;
+        Display *dpy;
+        
+        if(!(dpy = XOpenDisplay(NULL)))
+                die("Can't open display\n");
+        
+        XrmInitialize();
+        xrm = XResourceManagerString(dpy);
+        
+        if (xrm != NULL) {
+                xrdb = XrmGetStringDatabase(xrm);
+                
+                /* handling colors here without macros to do via loop. */
+                int i = 0;
+                char loadValue[12] = "";
+                for (i = 0; i < 256; i++)
+                {
+                        sprintf(loadValue, "%s%d", "st.color", i);
+                        
+                        if(!XrmGetResource(xrdb, loadValue, loadValue, &type, &ret))
+                        {
+                                sprintf(loadValue, "%s%d", "*.color", i);
+                                if (!XrmGetResource(xrdb, loadValue, loadValue, &type, &ret))
+                                /* reset if not found (unless in range for defaults). */
+                                if (i > 15)
+                                        colorname[i] = NULL;
+                }
+                
+                if (ret.addr != NULL && !strncmp("String", type, 64))
+                        colorname[i] = ret.addr;
+        }
+        
+        XRESOURCE_LOAD_STRING("foreground", colorname[256]);
+        XRESOURCE_LOAD_STRING("background", colorname[257]);
+        XRESOURCE_LOAD_STRING("font", font);
+        XRESOURCE_LOAD_STRING("termname", termname);
+        XRESOURCE_LOAD_STRING("shell", shell);
+        
+        XRESOURCE_LOAD_INTEGER("xfps", xfps);
+        XRESOURCE_LOAD_INTEGER("actionfps", actionfps);
+        XRESOURCE_LOAD_INTEGER("blinktimeout", blinktimeout);
+        XRESOURCE_LOAD_INTEGER("bellvolume", bellvolume);
+        XRESOURCE_LOAD_INTEGER("borderpx", borderpx);
+        
+        XRESOURCE_LOAD_FLOAT("cwscale", cwscale);
+        XRESOURCE_LOAD_FLOAT("chscale", chscale);
+        }
+        XFlush(dpy);
+}
 
-	XrmInitialize();
-	resm = XResourceManagerString(xw.dpy);
-
-	if (resm != NULL) {
-		db = XrmGetStringDatabase(resm);
-
-		XRESOURCE_LOAD_STRING("st.font", font);
-		XRESOURCE_LOAD_STRING("st.color0", colorname[0]);
-		XRESOURCE_LOAD_STRING("st.color1", colorname[1]);
-		XRESOURCE_LOAD_STRING("st.color2", colorname[2]);
-		XRESOURCE_LOAD_STRING("st.color3", colorname[3]);
-		XRESOURCE_LOAD_STRING("st.color4", colorname[4]);
-		XRESOURCE_LOAD_STRING("st.color5", colorname[5]);
-		XRESOURCE_LOAD_STRING("st.color6", colorname[6]);
-		XRESOURCE_LOAD_STRING("st.color7", colorname[7]);
-		XRESOURCE_LOAD_STRING("st.color8", colorname[8]);
-		XRESOURCE_LOAD_STRING("st.color9", colorname[9]);
-		XRESOURCE_LOAD_STRING("st.color10", colorname[10]);
-		XRESOURCE_LOAD_STRING("st.color11", colorname[11]);
-		XRESOURCE_LOAD_STRING("st.color12", colorname[12]);
-		XRESOURCE_LOAD_STRING("st.color13", colorname[13]);
-		XRESOURCE_LOAD_STRING("st.color14", colorname[14]);
-		XRESOURCE_LOAD_STRING("st.color15", colorname[15]);
-		XRESOURCE_LOAD_STRING("st.background", colorname[256]);
-		XRESOURCE_LOAD_STRING("st.foreground", colorname[257]);
-		XRESOURCE_LOAD_STRING("st.cursorColor", colorname[258]);
-		XRESOURCE_LOAD_STRING("st.termname", termname);
-		XRESOURCE_LOAD_STRING("st.shell", shell);
-		XRESOURCE_LOAD_INTEGER("st.xfps", xfps);
-		XRESOURCE_LOAD_INTEGER("st.actionfps", actionfps);
-		XRESOURCE_LOAD_INTEGER("st.blinktimeout", blinktimeout);
-		XRESOURCE_LOAD_INTEGER("st.bellvolume", bellvolume);
-		XRESOURCE_LOAD_INTEGER("st.tabspaces", tabspaces);
-		XRESOURCE_LOAD_INTEGER("st.bold_font", bold_font);
-		XRESOURCE_LOAD_FLOAT("st.cwscale", cwscale);
-		XRESOURCE_LOAD_FLOAT("st.chscale", chscale);
-	}
+void
+reload(int sig)
+{
+        xrdb_load();
+        
+        /* colors, fonts */
+        xloadcols();
+        xunloadfonts();
+        xloadfonts(font, 0);
+        
+        /* pretend the window just got resized */
+        cresize(xw.w, xw.h);
+        ttyresize();
+        
+        redraw();
+        
+        /* triggers re-render if we're visible. */
+        ttywrite("\033[O", 3);
+        
+        signal(SIGUSR1, reload);
 }
 
 
@@ -4600,7 +4640,8 @@ run:
 	}
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
-	config_init();
+	xrdb_load();
+        signal(SIGUSR1, reload);
 	tnew(MAX(cols, 1), MAX(rows, 1));
 	xinit();
 	selinit();
